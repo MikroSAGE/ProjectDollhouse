@@ -1,13 +1,16 @@
 import subprocess
 import time
 import numpy as np
+import os
 import cv2
+from ppadb.client import Client as AdbClient
 from PIL import Image
-import win32api, win32con, win32gui, win32ui
+import win32con, win32gui, win32ui
 from threading import Thread
 from ahk import AHK
 
 ahk = AHK()
+client = AdbClient(host="127.0.0.1", port=5037)
 
 
 def captureWindow(window_title, width, height):
@@ -33,7 +36,7 @@ def getWindowElementLocation(ElementImage, confidence=0.8):
     result = cv2.matchTemplate(sample, template, cv2.TM_CCOEFF_NORMED)
     minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result)
 
-    # print(f"template: {ElementImage}, confidence: {maxVal}")
+    print(f"template: {ElementImage}, confidence: {maxVal}")
 
     if maxVal < confidence:
         return None
@@ -44,9 +47,10 @@ def getWindowElementLocation(ElementImage, confidence=0.8):
 class Dollhouse:
 
     def __init__(self):
-        self.title = "MuMu Player"  # to store the title of the window
+        self.title = "BlueStacks App Player"  # to store the title of the window
         self.window = None  # to store the window handle
         self.process = None  # to store the emulator process
+        self.device = None  # to store the ADB device handle
         self.clock = time.time()
         self.emulatorThread = Thread(target=self.launchEmulator)  # to store the emulator thread
         self.debugThread = Thread(target=self.getRelativeMousePosition)  # to store the debug thread
@@ -54,7 +58,7 @@ class Dollhouse:
 
     def launchEmulator(self):
         print("starting up...")
-        self.process = subprocess.Popen([r"C:\Program Files\MuMu\emulator\nemu\EmulatorShell\NemuPlayer.exe"])
+        self.process = subprocess.Popen([r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"])
 
     def getWindow(self):
         try:
@@ -63,6 +67,10 @@ class Dollhouse:
             print(f"Got AHK window handle at {self.window}")
         except TimeoutError:
             print(f'{self.title} was not found!')
+
+    def getDevice(self):
+        os.system(r"C:\platform-tools\adb connect localhost:5555")
+        self.device = client.device("localhost:5555")
 
     def suppressWindow(self):
         while self.process is not None:
@@ -74,11 +82,15 @@ class Dollhouse:
             print(ahk.mouse_position[0]-self.window.position[0], ahk.mouse_position[1]-self.window.position[1])
             time.sleep(1)
 
+    def click(self, x, y):
+        cmdParam = str(x)+" "+str(y)+" "+str(x)+" "+str(y)
+        self.device.shell("input touchscreen swipe " + cmdParam)
+
     def clickWindowElement(self, element, repeat=False, timeout=-1):
         win = self.window.position
         imgObject = Image.open(f"images//{element}.png")
         elementWidth, elementHeight = imgObject.size
-        yOffset = 36  # bezel height of the window
+        yOffset = 66
         counter = 0
 
         while repeat or counter < 1:
@@ -92,29 +104,23 @@ class Dollhouse:
                     print(f"Element interation at [{element}] timed out.")
                     return
 
-                captureWindow(self.title, 2560, 1528)
+                captureWindow(self.title, self.window.width, self.window.height)
                 img = getWindowElementLocation(f"images//{element}.png", confidence=0.8)  # get a screenshot of window and return coords of element
 
-            ahk.click(img[0] + win[0] + elementWidth // 2,    # x-coordinate of click
-                      img[1] + win[1] + elementHeight // 2)   # y-coordinate of click
+            self.click(img[0] + elementWidth // 2, img[1] + elementHeight // 2 - yOffset)
 
             counter += 1
 
-    def clickElementsInWindow(self, elements, interval=1, timeout=-1):
+    def clickElementsInWindow(self, elements, interval=np.random.uniform(1, 3), timeout=-1):
         for element in elements:
             time.sleep(interval)
-
-            if element == "GFLapp":
-                self.clickWindowElement(element)
-                self.title = "Girls' Frontline - MuMu Player"
-                continue
 
             if element == "GFLfacebook":
                 self.clickWindowElement(element, timeout=10)
                 continue
 
             if element == "GFLclosebtn":
-                self.clickWindowElement(element, repeat=True, timeout=30)
+                # self.clickWindowElement(element, repeat=True, timeout=30)
                 continue
 
             self.clickWindowElement(element, timeout=timeout)
@@ -125,13 +131,10 @@ class Dollhouse:
         try:
             self.emulatorThread.start()
             self.getWindow()
-            # self.suppressionThread.start()
-            # self.debugThread.start()
+            self.getDevice()
+            self.window.to_bottom()
 
-            time.sleep(5)
-
-            self.clickElementsInWindow(["closebtn",
-                                        "GFLapp",
+            self.clickElementsInWindow(["GFLapp",
                                         "GFLstart",
                                         "GFLgamestart",
                                         "GFLfacebook",
@@ -140,7 +143,7 @@ class Dollhouse:
             self.clickElementsInWindow(["GFLdashboard",
                                         "GFLlogistics",
                                         "GFLlogisticsOkay"],
-                                       timeout=10)
+                                       timeout=20)
 
             time.sleep(10)
 
