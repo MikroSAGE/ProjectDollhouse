@@ -10,7 +10,6 @@ from threading import Thread
 from ahk import AHK
 
 ahk = AHK()
-client = AdbClient(host="127.0.0.1", port=5037)
 
 
 def captureWindow(window_title, width, height):
@@ -51,6 +50,7 @@ class Client:
         self.window = None  # to store the window handle
         self.process = None  # to store the emulator process
         self.device = None  # to store the ADB device handle
+        self.client = AdbClient(host="127.0.0.1", port=5037)
         self.clock = time.time()
         self.emulatorThread = Thread(target=self.launchEmulator)  # to store the emulator thread
         self.debugThread = Thread(target=self.getRelativeMousePosition)  # to store the debug thread
@@ -64,14 +64,17 @@ class Client:
         try:
             # wait up to 5 seconds for WINDOW
             self.window = ahk.win_wait(title=self.title, timeout=5)
-            self.window.to_bottom()
+            # self.window.to_bottom()
             print(f"Got AHK window handle at {self.window}")
         except TimeoutError:
             print(f'{self.title} was not found!')
 
     def getDevice(self):
-        os.system(r"C:\platform-tools\adb connect localhost:5555")
-        self.device = client.device("localhost:5555")
+        adb_path = r"C:\platform-tools\adb.exe"
+        subprocess.run([adb_path, "devices"])
+        subprocess.run([adb_path, "connect", "localhost:5555"])
+        # os.system(r"C:\platform-tools\adb kill-server")
+        self.device = self.client.device("localhost:5555")
 
     def suppressWindow(self):
         while self.process is not None:
@@ -87,40 +90,37 @@ class Client:
         cmdParam = str(x)+" "+str(y)+" "+str(x)+" "+str(y)
         self.device.shell("input touchscreen swipe " + cmdParam)
 
-    def clickWindowElement(self, element, repeat=False, timeout=-1):
+    def clickWindowElement(self, element, timeout=-1, repeats=1):
         imgObject = Image.open(f"images//{element}.png")
         elementWidth, elementHeight = imgObject.size
         yOffset = 66
-        counter = 0
 
-        while repeat or counter < 1:
+        img = None
+        self.clock = time.time()
 
-            img = None
-            self.clock = time.time()
+        while img is None:
 
-            while img is None:
+            if (time.time() - self.clock > timeout) and (timeout != -1):
+                print(f"Element interation at [{element}] timed out.")
+                return
 
-                if (time.time() - self.clock > timeout) and (timeout != -1):
-                    print(f"Element interation at [{element}] timed out.")
-                    return
+            captureWindow(self.title, self.window.width, self.window.height)
+            img = getWindowElementLocation(f"images//{element}.png", confidence=0.8)  # get a screenshot of window and return coords of element
 
-                captureWindow(self.title, self.window.width, self.window.height)
-                img = getWindowElementLocation(f"images//{element}.png", confidence=0.8)  # get a screenshot of window and return coords of element
-
+        for _ in range(repeats):
+            time.sleep(np.random.uniform(0.5, 1))
             self.click(img[0] + elementWidth // 2, img[1] + elementHeight // 2 - yOffset)
-
-            counter += 1
 
     def clickElementsInWindow(self, elements, interval=np.random.uniform(1, 3), timeout=-1):
         for element in elements:
             time.sleep(interval)
 
-            if element == "GFLfacebook":
+            if element == "GFLfacebook" or element == "GFLexitevent":
                 self.clickWindowElement(element, timeout=10)
                 continue
 
-            if element == "GFLclosebtn":
-                # self.clickWindowElement(element, repeat=True, timeout=30)
+            if element == "GFLclosebanner":
+                self.clickWindowElement(element, timeout=30, repeats=5)
                 continue
 
             self.clickWindowElement(element, timeout=timeout)
@@ -131,20 +131,24 @@ class Client:
         try:
             self.emulatorThread.start()
             self.getWindow()
+            time.sleep(1)
             self.getDevice()
 
+            # series of actions to enter GFL home
             self.clickElementsInWindow(["GFLapp",
                                         "GFLstart",
                                         "GFLgamestart",
                                         "GFLfacebook",
-                                        "GFLclosebtn"])
+                                        "GFLclosebanner",
+                                        "GFLexitevent"])
 
+            # series of actions to redeploy logistics
             self.clickElementsInWindow(["GFLdashboard",
                                         "GFLlogistics",
                                         "GFLlogisticsOkay"],
                                        timeout=20)
 
-            time.sleep(10)
+            time.sleep(3)
 
         finally:
             self.process.kill()
