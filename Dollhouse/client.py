@@ -1,7 +1,6 @@
 import subprocess
 import time
 import numpy as np
-import os
 import cv2
 from ppadb.client import Client as AdbClient
 from PIL import Image
@@ -45,11 +44,12 @@ def getWindowElementLocation(ElementImage, confidence=0.8):
 
 class Client:
 
-    def __init__(self):
+    def __init__(self, port):
         self.title = "BlueStacks App Player"  # to store the title of the window
         self.window = None  # to store the window handle
         self.process = None  # to store the emulator process
         self.device = None  # to store the ADB device handle
+        self.port = port
         self.client = AdbClient(host="127.0.0.1", port=5037)
         self.clock = time.time()
         self.emulatorThread = Thread(target=self.launchEmulator)  # to store the emulator thread
@@ -58,7 +58,7 @@ class Client:
 
     def launchEmulator(self):
         print("starting up...")
-        self.process = subprocess.Popen([r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"])
+        self.process = subprocess.Popen([r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"], shell=True)
 
     def getWindow(self):
         try:
@@ -72,9 +72,9 @@ class Client:
     def getDevice(self):
         adb_path = r"C:\platform-tools\adb.exe"
         subprocess.run([adb_path, "devices"])
-        subprocess.run([adb_path, "connect", "localhost:5555"])
-        # os.system(r"C:\platform-tools\adb kill-server")
-        self.device = self.client.device("localhost:5555")
+        subprocess.run([adb_path, "connect", "localhost:"+str(self.port)])
+
+        self.device = self.client.device("localhost:"+str(self.port))
 
     def suppressWindow(self):
         while self.process is not None:
@@ -131,7 +131,7 @@ class Client:
         try:
             self.emulatorThread.start()
             self.getWindow()
-            time.sleep(1)
+            time.sleep(2)
             self.getDevice()
 
             # series of actions to enter GFL home
@@ -146,7 +146,7 @@ class Client:
             self.clickElementsInWindow(["GFLdashboard",
                                         "GFLlogistics",
                                         "GFLlogisticsOkay"],
-                                       timeout=20)
+                                       timeout=15)
 
             time.sleep(3)
 

@@ -2,7 +2,7 @@ from Dollhouse.client import Client
 
 
 def main():
-    mu01 = Client()
+    mu01 = Client(port=51332)
     mu01.run()
 
 
