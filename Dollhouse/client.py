@@ -44,12 +44,12 @@ def getWindowElementLocation(ElementImage, confidence=0.8):
 
 class Client:
 
-    def __init__(self, port):
+    def __init__(self):
         self.title = "BlueStacks App Player"  # to store the title of the window
         self.window = None  # to store the window handle
         self.process = None  # to store the emulator process
         self.device = None  # to store the ADB device handle
-        self.port = port
+        self.port = None
         self.client = AdbClient(host="127.0.0.1", port=5037)
         self.clock = time.time()
         self.emulatorThread = Thread(target=self.launchEmulator)  # to store the emulator thread
@@ -58,7 +58,7 @@ class Client:
 
     def launchEmulator(self):
         print("starting up...")
-        self.process = subprocess.Popen([r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"], shell=True)
+        self.process = subprocess.Popen([r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"])
 
     def getWindow(self):
         try:
@@ -69,12 +69,17 @@ class Client:
         except TimeoutError:
             print(f'{self.title} was not found!')
 
+    def getPort(self):
+        with open("C:/ProgramData/BlueStacks_nxt/bluestacks.conf") as infile:
+            matches = [line for line in infile.readlines() if "bst.instance.Pie64.status.adb_port" in line]
+        self.port = matches[0][36:-2]
+
     def getDevice(self):
         adb_path = r"C:\platform-tools\adb.exe"
         subprocess.run([adb_path, "devices"])
-        subprocess.run([adb_path, "connect", "localhost:"+str(self.port)])
+        subprocess.run([adb_path, "connect", f"localhost:{self.port}"])
 
-        self.device = self.client.device("localhost:"+str(self.port))
+        self.device = self.client.device(f"localhost:{self.port}")
 
     def suppressWindow(self):
         while self.process is not None:
@@ -132,6 +137,7 @@ class Client:
             self.emulatorThread.start()
             self.getWindow()
             time.sleep(2)
+            self.getPort()
             self.getDevice()
 
             # series of actions to enter GFL home
