@@ -42,10 +42,39 @@ def getWindowElementLocation(ElementImage, confidence=0.8):
     return maxLoc
 
 
+def checkElementWithinTimeout(elem1, elem2, timeout=30):
+    start_time = time.time()
+    element = elem1
+    while time.time() - start_time < timeout:
+        img = getWindowElementLocation(f"images//{element}.png", confidence=0.8)
+
+        if img is not None and element == elem2:
+            return True
+        else:
+            element = elem2 if element == elem1 else elem1
+
+    return False
+
+
 class Client:
 
-    def __init__(self):
+    def __init__(self, actionQueue=["sign-in", "logistics"]):
         self.title = "BlueStacks App Player"  # to store the title of the window
+        self.actions = {
+
+            "sign-in": {"GFLapp":         {"timeout": -1, "repeats": 1},
+                        "GFLstart":       {"timeout": -1, "repeats": 1},
+                        "GFLgamestart":   {"timeout": -1, "repeats": 1},
+                        "GFLfacebook":    {"timeout": -1, "repeats": 1},
+                        "GFLclosebanner": {"timeout": 1, "repeats": 5},
+                        "GFLexitevent":   {"timeout": 5, "repeats": 1}
+                        },
+
+            "logistics": {"GFLlogistics":     {"timeout": 5, "repeats": 1},
+                          "GFLlogisticsOkay": {"timeout": 5, "repeats": 1}
+                          }
+        }
+        self.actionQueue = actionQueue
         self.window = None  # to store the window handle
         self.process = None  # to store the emulator process
         self.device = None  # to store the ADB device handle
@@ -54,7 +83,6 @@ class Client:
         self.clock = time.time()
         self.emulatorThread = Thread(target=self.launchEmulator)  # to store the emulator thread
         self.debugThread = Thread(target=self.getRelativeMousePosition)  # to store the debug thread
-        self.suppressionThread = Thread(target=self.suppressWindow)  # to store the suppression thread
 
     def launchEmulator(self):
         print("starting up...")
@@ -81,11 +109,6 @@ class Client:
 
         self.device = self.client.device(f"localhost:{self.port}")
 
-    def suppressWindow(self):
-        while self.process is not None:
-            if self.window.active:
-                self.window.to_bottom()
-
     def getRelativeMousePosition(self):
         while self.process is not None:
             print(ahk.mouse_position[0]-self.window.position[0], ahk.mouse_position[1]-self.window.position[1])
@@ -107,7 +130,7 @@ class Client:
 
             if (time.time() - self.clock > timeout) and (timeout != -1):
                 print(f"Element interation at [{element}] timed out.")
-                return
+                return False
 
             captureWindow(self.title, self.window.width, self.window.height)
             img = getWindowElementLocation(f"images//{element}.png", confidence=0.8)  # get a screenshot of window and return coords of element
@@ -116,43 +139,32 @@ class Client:
             time.sleep(np.random.uniform(0.5, 1))
             self.click(img[0] + elementWidth // 2, img[1] + elementHeight // 2 - yOffset)
 
-    def clickElementsInWindow(self, elements, interval=np.random.uniform(1, 3), timeout=-1):
-        for element in elements:
-            time.sleep(interval)
+        return True
 
-            if element == "GFLfacebook" or element == "GFLexitevent":
-                self.clickWindowElement(element, timeout=10)
-                continue
+    def executeAgenda(self, agenda, interval=np.random.uniform(1, 3)):
+        for action in agenda:
+            switch = False
+            actionDict = self.actions[action]
+            for element, elementAttr in actionDict.items():
+                time.sleep(interval)
+                status = self.clickWindowElement(element,
+                                                 timeout=elementAttr["timeout"],
+                                                 repeats=elementAttr["repeats"])
+                if status is False:
+                    if element == "GFLclosebanner":
+                        switch = checkElementWithinTimeout("GFLclosebanner", "GFLlogistics", timeout=25)
 
-            if element == "GFLclosebanner":
-                self.clickWindowElement(element, timeout=30, repeats=5)
-                continue
-
-            self.clickWindowElement(element, timeout=timeout)
-
-            # a222lin@uwaterloo.ca
+                if switch:
+                    break
 
     def run(self):
         try:
             self.emulatorThread.start()
             self.getWindow()
-            time.sleep(2)
             self.getPort()
             self.getDevice()
 
-            # series of actions to enter GFL home
-            self.clickElementsInWindow(["GFLapp",
-                                        "GFLstart",
-                                        "GFLgamestart",
-                                        "GFLfacebook",
-                                        "GFLclosebanner",
-                                        "GFLexitevent"])
-
-            # series of actions to redeploy logistics
-            self.clickElementsInWindow(["GFLdashboard",
-                                        "GFLlogistics",
-                                        "GFLlogisticsOkay"],
-                                       timeout=15)
+            self.executeAgenda(self.actionQueue)
 
             time.sleep(3)
 
