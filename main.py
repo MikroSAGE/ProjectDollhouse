@@ -2,7 +2,7 @@ from Dollhouse.client import Client
 
 
 def main():
-    mu01 = Client()
+    mu01 = Client(["sign-in", "logistics"])
     mu01.run()
 
 

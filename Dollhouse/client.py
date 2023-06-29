@@ -31,47 +31,53 @@ def getWindowElementLocation(ElementImage, confidence=0.8):
     sample = cv2.imread("windowCapture.bmp", cv2.IMREAD_UNCHANGED)
     template = cv2.imread(ElementImage, cv2.IMREAD_UNCHANGED)
 
-    result = cv2.matchTemplate(sample, template, cv2.TM_CCOEFF_NORMED)
-    minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result)
+    try:
+        result = cv2.matchTemplate(sample, template, cv2.TM_CCOEFF_NORMED)
+        minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result)
 
-    print(f"template: {ElementImage}, confidence: {maxVal}")
+        if maxVal < confidence:
+            return None
 
-    if maxVal < confidence:
+        print(f"template: {ElementImage}, confidence: {maxVal}")
+
+        return maxLoc
+
+    except cv2.error:
+        print("waiting for window...")
         return None
 
-    return maxLoc
 
-
-def checkElementWithinTimeout(elem1, elem2, timeout=30):
+def checkElementWithinTimeout(staticElem, dynamicElem, timeout=30):
     start_time = time.time()
-    element = elem1
+    element = staticElem
     while time.time() - start_time < timeout:
         img = getWindowElementLocation(f"images//{element}.png", confidence=0.8)
 
-        if img is not None and element == elem2:
+        if img is not None and element == dynamicElem:
             return True
         else:
-            element = elem2 if element == elem1 else elem1
+            element = dynamicElem if element == staticElem else staticElem
 
     return False
 
 
 class Client:
 
-    def __init__(self, actionQueue=["sign-in", "logistics"]):
+    def __init__(self, actionQueue):
         self.title = "BlueStacks App Player"  # to store the title of the window
         self.actions = {
 
             "sign-in": {"GFLapp":         {"timeout": -1, "repeats": 1},
                         "GFLstart":       {"timeout": -1, "repeats": 1},
+                        "GFLupdate":      {"timeout": 10, "repeats": 1},
                         "GFLgamestart":   {"timeout": -1, "repeats": 1},
-                        "GFLfacebook":    {"timeout": -1, "repeats": 1},
+                        "GFLfacebook":    {"timeout": 15, "repeats": 1},
                         "GFLclosebanner": {"timeout": 1, "repeats": 5},
-                        "GFLexitevent":   {"timeout": 5, "repeats": 1}
+                        "GFLexitevent":   {"timeout": 3, "repeats": 1}
                         },
 
-            "logistics": {"GFLlogistics":     {"timeout": 5, "repeats": 1},
-                          "GFLlogisticsOkay": {"timeout": 5, "repeats": 1}
+            "logistics": {"GFLlogistics":     {"timeout": 10, "repeats": 1},
+                          "GFLlogisticsOkay": {"timeout": 10, "repeats": 1}
                           }
         }
         self.actionQueue = actionQueue
@@ -92,7 +98,7 @@ class Client:
         try:
             # wait up to 5 seconds for WINDOW
             self.window = ahk.win_wait(title=self.title, timeout=5)
-            # self.window.to_bottom()
+            self.window.to_bottom()
             print(f"Got AHK window handle at {self.window}")
         except TimeoutError:
             print(f'{self.title} was not found!')
@@ -136,7 +142,7 @@ class Client:
             img = getWindowElementLocation(f"images//{element}.png", confidence=0.8)  # get a screenshot of window and return coords of element
 
         for _ in range(repeats):
-            time.sleep(np.random.uniform(0.5, 1))
+            time.sleep(np.random.uniform(1, 2))
             self.click(img[0] + elementWidth // 2, img[1] + elementHeight // 2 - yOffset)
 
         return True
@@ -152,7 +158,7 @@ class Client:
                                                  repeats=elementAttr["repeats"])
                 if status is False:
                     if element == "GFLclosebanner":
-                        switch = checkElementWithinTimeout("GFLclosebanner", "GFLlogistics", timeout=25)
+                        switch = checkElementWithinTimeout("GFLclosebanner", "GFLlogistics", timeout=45)
 
                 if switch:
                     break
