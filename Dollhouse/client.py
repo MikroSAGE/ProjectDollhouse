@@ -91,7 +91,7 @@ class Client:
 
     def launchEmulator(self):
         print("starting up...")
-        self.process = subprocess.Popen([r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"])
+        self.process = subprocess.Popen([r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"], shell=True)
 
     def getWindow(self):
         try:
