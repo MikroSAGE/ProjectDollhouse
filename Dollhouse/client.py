@@ -38,27 +38,13 @@ def getWindowElementLocation(ElementImage, confidence=0.8):
         if maxVal < confidence:
             return None
 
-        print(f"template: {ElementImage}, confidence: {maxVal}")
+        print(f"template: {ElementImage}, confidence: {maxVal:.2%}")
 
         return maxLoc
 
     except cv2.error:
         print("waiting for window...")
         return None
-
-
-def checkElementWithinTimeout(staticElem, dynamicElem, timeout=30):
-    start_time = time.time()
-    element = staticElem
-    while time.time() - start_time < timeout:
-        img = getWindowElementLocation(f"images//{element}.png", confidence=0.8)
-
-        if img is not None and element == dynamicElem:
-            return True
-        else:
-            element = dynamicElem if element == staticElem else staticElem
-
-    return False
 
 
 class Client:
@@ -72,13 +58,26 @@ class Client:
                         "GFLupdate":      {"timeout": 10, "repeats": 1},
                         "GFLgamestart":   {"timeout": -1, "repeats": 1},
                         "GFLfacebook":    {"timeout": 15, "repeats": 1},
-                        "GFLclosebanner": {"timeout": 1, "repeats": 5},
+                        "GFLclosebanner": {"timeout": 35, "repeats": 5},
                         "GFLexitevent":   {"timeout": 3, "repeats": 1}
                         },
 
             "logistics": {"GFLlogistics":     {"timeout": 10, "repeats": 1},
                           "GFLlogisticsOkay": {"timeout": 10, "repeats": 1}
-                          }
+                          },
+
+            "intelligence": {"GFLcombat":                {"timeout": 10, "repeats": 1},
+                             "GFLbase":                  {"timeout": 10, "repeats": 1},
+                             "GFLintelligence":          {"timeout": 10, "repeats": 1},
+                             "GFLdataHub":               {"timeout": 10, "repeats": 1},
+                             "dummy":                    {"timeout": 1, "repeats": 1},
+                             "GFLanalysisTerminal":      {"timeout": 5, "repeats": 1},
+                             "GFLconfirmDataCollection": {"timeout": 5, "repeats": 2},
+                             "GFLdataStart":             {"timeout": 5, "repeats": 1},
+                             "GFLdataOkay":              {"timeout": 5, "repeats": 1},
+                             "GFLanalysisTerminalExit":  {"timeout": 10, "repeats": 1},
+                             "GFLhome":                  {"timeout": 10, "repeats": 1}
+                             }
         }
         self.actionQueue = actionQueue
         self.window = None  # to store the window handle
@@ -98,7 +97,7 @@ class Client:
         try:
             # wait up to 5 seconds for WINDOW
             self.window = ahk.win_wait(title=self.title, timeout=5)
-            self.window.to_bottom()
+            self.window.to_top()  # Prone to debugging
             print(f"Got AHK window handle at {self.window}")
         except TimeoutError:
             print(f'{self.title} was not found!')
@@ -149,19 +148,16 @@ class Client:
 
     def executeAgenda(self, agenda, interval=np.random.uniform(1, 3)):
         for action in agenda:
-            switch = False
             actionDict = self.actions[action]
             for element, elementAttr in actionDict.items():
                 time.sleep(interval)
-                status = self.clickWindowElement(element,
-                                                 timeout=elementAttr["timeout"],
-                                                 repeats=elementAttr["repeats"])
-                if status is False:
-                    if element == "GFLclosebanner":
-                        switch = checkElementWithinTimeout("GFLclosebanner", "GFLlogistics", timeout=45)
-
-                if switch:
-                    break
+                if element == "dummy":
+                    self.click(self.window.width//2, self.window.height//4)
+                    print("dummy click...")
+                    continue
+                self.clickWindowElement(element,
+                                        timeout=elementAttr["timeout"],
+                                        repeats=elementAttr["repeats"])
 
     def run(self):
         try:
@@ -175,5 +171,6 @@ class Client:
             time.sleep(3)
 
         finally:
+            self.emulatorThread.join()
             self.process.kill()
             print("Finished executing operations.")
