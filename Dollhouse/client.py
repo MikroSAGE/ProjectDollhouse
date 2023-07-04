@@ -53,30 +53,30 @@ class Client:
         self.title = "BlueStacks App Player"  # to store the title of the window
         self.actions = {
 
-            "sign-in": {"GFLapp":         {"timeout": -1, "repeats": 1},
-                        "GFLstart":       {"timeout": -1, "repeats": 1},
-                        "GFLupdate":      {"timeout": 10, "repeats": 1},
-                        "GFLgamestart":   {"timeout": -1, "repeats": 1},
-                        "GFLfacebook":    {"timeout": 15, "repeats": 1},
-                        "GFLclosebanner": {"timeout": 35, "repeats": 5},
-                        "GFLexitevent":   {"timeout": 3, "repeats": 1}
+            "sign-in": {"GFLapp":         {"timeout": -1, "repeats": 1, "confidence": 0.8},
+                        "GFLstart":       {"timeout": -1, "repeats": 1, "confidence": 0.8},
+                        "GFLupdate":      {"timeout": 20, "repeats": 1, "confidence": 0.8},
+                        "GFLgamestart":   {"timeout": -1, "repeats": 1, "confidence": 0.8},
+                        "GFLfacebook":    {"timeout": 15, "repeats": 1, "confidence": 0.8},
+                        "GFLclosebanner": {"timeout": 35, "repeats": 5, "confidence": 0.8},
+                        "GFLexitevent":   {"timeout": 3, "repeats": 1, "confidence": 0.8}
                         },
 
-            "logistics": {"GFLlogistics":     {"timeout": 10, "repeats": 1},
-                          "GFLlogisticsOkay": {"timeout": 10, "repeats": 1}
+            "logistics": {"GFLlogistics":     {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                          "GFLlogisticsOkay": {"timeout": 10, "repeats": 1, "confidence": 0.8}
                           },
 
-            "intelligence": {"GFLcombat":                {"timeout": 10, "repeats": 1},
-                             "GFLbase":                  {"timeout": 10, "repeats": 1},
-                             "GFLintelligence":          {"timeout": 10, "repeats": 1},
-                             "GFLdataHub":               {"timeout": 10, "repeats": 1},
-                             "dummy":                    {"timeout": 1, "repeats": 1},
-                             "GFLanalysisTerminal":      {"timeout": 5, "repeats": 1},
-                             "GFLconfirmDataCollection": {"timeout": 5, "repeats": 2},
-                             "GFLdataStart":             {"timeout": 5, "repeats": 1},
-                             "GFLdataOkay":              {"timeout": 5, "repeats": 1},
-                             "GFLanalysisTerminalExit":  {"timeout": 10, "repeats": 1},
-                             "GFLhome":                  {"timeout": 10, "repeats": 1}
+            "intelligence": {"GFLcombat":                {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                             "GFLbase":                  {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                             "GFLintelligence":          {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                             "GFLdataHub":               {"timeout": 20, "repeats": 1, "confidence": 0.8},
+                             "dummy":                    {"timeout": 1, "repeats": 1, "confidence": 0.8},
+                             "GFLanalysisTerminal":      {"timeout": 5, "repeats": 1, "confidence": 0.8},
+                             "GFLconfirmDataCollection": {"timeout": 5, "repeats": 2, "confidence": 0.98},
+                             "GFLdataStart":             {"timeout": 5, "repeats": 1, "confidence": 0.8},
+                             "GFLdataOkay":              {"timeout": 5, "repeats": 1, "confidence": 0.8},
+                             "GFLanalysisTerminalExit":  {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                             "GFLhome":                  {"timeout": 10, "repeats": 1, "confidence": 0.8}
                              }
         }
         self.actionQueue = actionQueue
@@ -97,7 +97,7 @@ class Client:
         try:
             # wait up to 5 seconds for WINDOW
             self.window = ahk.win_wait(title=self.title, timeout=5)
-            self.window.to_top()  # Prone to debugging
+            self.window.to_bottom()  # Prone to debugging
             print(f"Got AHK window handle at {self.window}")
         except TimeoutError:
             print(f'{self.title} was not found!')
@@ -123,7 +123,7 @@ class Client:
         cmdParam = str(x)+" "+str(y)+" "+str(x)+" "+str(y)
         self.device.shell("input touchscreen swipe " + cmdParam)
 
-    def clickWindowElement(self, element, timeout=-1, repeats=1):
+    def clickWindowElement(self, element, timeout=-1, repeats=1, confidence=0.8):
         imgObject = Image.open(f"images//{element}.png")
         elementWidth, elementHeight = imgObject.size
         yOffset = 66
@@ -138,7 +138,7 @@ class Client:
                 return False
 
             captureWindow(self.title, self.window.width, self.window.height)
-            img = getWindowElementLocation(f"images//{element}.png", confidence=0.8)  # get a screenshot of window and return coords of element
+            img = getWindowElementLocation(f"images//{element}.png", confidence=confidence)  # get a screenshot of window and return coords of element
 
         for _ in range(repeats):
             time.sleep(np.random.uniform(1, 2))
@@ -157,7 +157,8 @@ class Client:
                     continue
                 self.clickWindowElement(element,
                                         timeout=elementAttr["timeout"],
-                                        repeats=elementAttr["repeats"])
+                                        repeats=elementAttr["repeats"],
+                                        confidence=elementAttr["confidence"])
 
     def run(self):
         try:
