@@ -1,4 +1,4 @@
-# GFL Automation Project
+# Project Dollhouse [GFL Automation Project]
 
 This project aims to automate repetitive tasks in the game 'Girl's Frontline' (GFL) using a combination of Python libraries, including OpenCV, AutoHotkey (AHK), and Pure-Python ADB, in tandem with the Bluestacks emulator
 ## Overview
