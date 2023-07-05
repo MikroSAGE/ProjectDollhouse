@@ -51,10 +51,11 @@ class Client:
 
     def __init__(self, actionQueue):
         self.title = "BlueStacks App Player"  # to store the title of the window
+        self.process = "HD-Player.exe"
         self.actions = {
 
             "sign-in": {"GFLapp":         {"timeout": -1, "repeats": 1, "confidence": 0.8},
-                        "GFLstart":       {"timeout": -1, "repeats": 1, "confidence": 0.8},
+                        "GFLstart":       {"timeout": 20, "repeats": 1, "confidence": 0.8},
                         "GFLupdate":      {"timeout": 20, "repeats": 1, "confidence": 0.8},
                         "GFLgamestart":   {"timeout": -1, "repeats": 1, "confidence": 0.8},
                         "GFLfacebook":    {"timeout": 15, "repeats": 1, "confidence": 0.8},
@@ -72,7 +73,7 @@ class Client:
                              "GFLdataHub":               {"timeout": 20, "repeats": 1, "confidence": 0.8},
                              "dummy":                    {"timeout": 1, "repeats": 1, "confidence": 0.8},
                              "GFLanalysisTerminal":      {"timeout": 5, "repeats": 1, "confidence": 0.8},
-                             "GFLconfirmDataCollection": {"timeout": 5, "repeats": 2, "confidence": 0.98},
+                             "GFLconfirmDataCollection": {"timeout": 5, "repeats": 3, "confidence": 0.98},
                              "GFLdataStart":             {"timeout": 5, "repeats": 1, "confidence": 0.8},
                              "GFLdataOkay":              {"timeout": 5, "repeats": 1, "confidence": 0.8},
                              "GFLanalysisTerminalExit":  {"timeout": 10, "repeats": 1, "confidence": 0.8},
@@ -81,7 +82,6 @@ class Client:
         }
         self.actionQueue = actionQueue
         self.window = None  # to store the window handle
-        self.process = None  # to store the emulator process
         self.device = None  # to store the ADB device handle
         self.port = None
         self.client = AdbClient(host="127.0.0.1", port=5037)
@@ -91,13 +91,13 @@ class Client:
 
     def launchEmulator(self):
         print("starting up...")
-        self.process = subprocess.Popen([r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"], shell=True)
+        subprocess.call([rf"C:\Program Files\BlueStacks_nxt\{self.process}"], shell=True)
 
     def getWindow(self):
         try:
             # wait up to 5 seconds for WINDOW
             self.window = ahk.win_wait(title=self.title, timeout=5)
-            self.window.to_bottom()  # Prone to debugging
+            self.window.to_bottom()
             print(f"Got AHK window handle at {self.window}")
         except TimeoutError:
             print(f'{self.title} was not found!')
@@ -172,6 +172,5 @@ class Client:
             time.sleep(3)
 
         finally:
-            self.emulatorThread.join()
-            self.process.kill()
+            subprocess.call(['taskkill', '/F', '/IM', self.process], shell=True)
             print("Finished executing operations.")
