@@ -3,7 +3,7 @@
 This project aims to automate repetitive tasks in the game 'Girl's Frontline' (GFL) using a combination of Python libraries, including OpenCV, AutoHotkey (AHK), and Pure-Python ADB, in tandem with the Bluestacks emulator
 ## Overview
 
-The automation script developed in this project allows users to automate various tasks in the GFL game, such as collecting resources, managing teams, and completing missions. By leveraging computer vision with OpenCV, interacting with the game window using AHK, and controlling the Android emulator with Pure-Python ADB, the script automates actions to optimize gameplay efficiency.
+The automation script developed in this project allows users to automate various tasks in the GFL game, such as running logistics, corpse-dragging, and battle simulation drills. By leveraging computer vision with OpenCV, interacting with the game window using AHK, and controlling the Android emulator with Pure-Python ADB, the script automates actions to optimize gameplay efficiency.
 
 ## Prerequisites
 
