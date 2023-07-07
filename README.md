@@ -20,7 +20,7 @@ To run the automation script, you'll need the following prerequisites:
 1. Clone the project repository to your local machine:
 
 ```
-git clone https://github.com/your-username/gfl-automation.git
+git clone https://github.com/MikroSAGE/gfl-automation.git
 ```
 
 2. Install the required Python dependencies:
