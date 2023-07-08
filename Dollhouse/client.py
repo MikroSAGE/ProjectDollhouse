@@ -27,18 +27,28 @@ def captureWindow(window_title, width, height):
     win32gui.DeleteObject(dataBitMap.GetHandle())
 
 
-def getWindowElementLocation(ElementImage, confidence=0.8):
+def getWindowElementLocation(element_image, scaling_factor=1.0, confidence=0.8):
+    img = Image.open(element_image)
+
+    new_width = int(img.width * scaling_factor)
+    new_height = int(img.height * scaling_factor)
+
+    resized_image = img.resize((new_width, new_height))
+    resized_image.save("targetElement.jpg")
+
+    template = cv2.imread("targetElement.jpg", cv2.IMREAD_UNCHANGED)
     sample = cv2.imread("windowCapture.bmp", cv2.IMREAD_UNCHANGED)
-    template = cv2.imread(ElementImage, cv2.IMREAD_UNCHANGED)
 
     try:
         result = cv2.matchTemplate(sample, template, cv2.TM_CCOEFF_NORMED)
         minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result)
 
+        # print(f"template: {element_image}, confidence: {maxVal:.2%}")
+
         if maxVal < confidence:
             return None
 
-        print(f"template: {ElementImage}, confidence: {maxVal:.2%}")
+        print(f"template: {element_image}, confidence: {maxVal:.2%}")
 
         return maxLoc
 
@@ -52,6 +62,9 @@ class Client:
     def __init__(self, actionQueue):
         self.title = "BlueStacks App Player"  # to store the title of the window
         self.process = "HD-Player.exe"
+        self.width = 0
+        self.height = 0
+        self.nativeWindowDimensions = (2302, 1326)
         self.actions = {
 
             "sign-in": {"GFLapp":         {"timeout": -1, "repeats": 1, "confidence": 0.8},
@@ -78,7 +91,22 @@ class Client:
                              "GFLdataOkay":              {"timeout": 5, "repeats": 1, "confidence": 0.8},
                              "GFLanalysisTerminalExit":  {"timeout": 10, "repeats": 1, "confidence": 0.8},
                              "GFLhome":                  {"timeout": 10, "repeats": 1, "confidence": 0.8}
-                             }
+                             },
+
+            "exploration": {"GFLcombat":          {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                            "GFLbase":            {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                            "GFLforwardBasecamp": {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                            "GFLlootCrate":       {"timeout": 20, "repeats": 1, "confidence": 0.8},
+                            "dummy":              {"timeout": 1, "repeats": 1, "confidence": 0.8},
+                            "GFLhome":            {"timeout": 10, "repeats": 1, "confidence": 0.8}
+                            },
+
+            "battery": {"GFLcombat":         {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                        "GFLbase":           {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                        "GFLdorm":           {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                        "GFLsuperCapacitor": {"timeout": 20, "repeats": 2, "confidence": 0.8},
+                        "GFLhome":           {"timeout": 10, "repeats": 1, "confidence": 0.8}
+                        }
         }
         self.actionQueue = actionQueue
         self.window = None  # to store the window handle
@@ -98,6 +126,8 @@ class Client:
             # wait up to 5 seconds for WINDOW
             self.window = ahk.win_wait(title=self.title, timeout=5)
             self.window.to_bottom()
+            self.width = self.window.get_position()[2]
+            self.height = self.window.get_position()[3]
             print(f"Got AHK window handle at {self.window}")
         except TimeoutError:
             print(f'{self.title} was not found!')
@@ -124,9 +154,13 @@ class Client:
         self.device.shell("input touchscreen swipe " + cmdParam)
 
     def clickWindowElement(self, element, timeout=-1, repeats=1, confidence=0.8):
+        scaling_factor = np.mean([self.width / self.nativeWindowDimensions[0], self.height / self.nativeWindowDimensions[1]])
+
         imgObject = Image.open(f"images//{element}.png")
+        imgObject = imgObject.resize((int(imgObject.width*scaling_factor), int(imgObject.height*scaling_factor)))
+
         elementWidth, elementHeight = imgObject.size
-        yOffset = 66
+        yOffset = int(66*scaling_factor)
 
         img = None
         self.clock = time.time()
@@ -137,8 +171,9 @@ class Client:
                 print(f"Element interation at [{element}] timed out.")
                 return False
 
-            captureWindow(self.title, self.window.width, self.window.height)
-            img = getWindowElementLocation(f"images//{element}.png", confidence=confidence)  # get a screenshot of window and return coords of element
+            captureWindow(self.title, self.width, self.height)
+
+            img = getWindowElementLocation(f"images//{element}.png", scaling_factor=scaling_factor, confidence=confidence)  # get a screenshot of window and return coords of element
 
         for _ in range(repeats):
             time.sleep(np.random.uniform(1, 2))
@@ -152,7 +187,7 @@ class Client:
             for element, elementAttr in actionDict.items():
                 time.sleep(interval)
                 if element == "dummy":
-                    self.click(self.window.width//2, self.window.height//4)
+                    self.click(self.width//2, self.height//4)
                     print("dummy click...")
                     continue
                 self.clickWindowElement(element,
