@@ -91,7 +91,10 @@ class Client:
                              "GFLdataOkay":              {"timeout": 5, "repeats": 1, "confidence": 0.8},
                              "GFLanalysisTerminalExit":  {"timeout": 10, "repeats": 1, "confidence": 0.8},
                              "GFLhome":                  {"timeout": 10, "repeats": 1, "confidence": 0.8}
-                             }
+                             },
+
+            "exploration"
+
         }
         self.actionQueue = actionQueue
         self.window = None  # to store the window handle
@@ -139,7 +142,7 @@ class Client:
         self.device.shell("input touchscreen swipe " + cmdParam)
 
     def clickWindowElement(self, element, timeout=-1, repeats=1, confidence=0.8):
-        scaling_factor = np.mean([self.width / self.nativeWindowDimensions[0], self.height / self.nativeWindowDimensions[1]])
+        scaling_factor = float(np.mean([self.width / self.nativeWindowDimensions[0], self.height / self.nativeWindowDimensions[1]]))
 
         imgObject = Image.open(f"images//{element}.png")
         imgObject = imgObject.resize((int(imgObject.width*scaling_factor), int(imgObject.height*scaling_factor)))
