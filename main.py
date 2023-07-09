@@ -12,6 +12,10 @@ def bootstrap():
     mu01 = Client(["sign-in",
                    "logistics",
                    "intelligence",
+                   "logistics",
+                   "exploration",
+                   "logistics",
+                   "battery",
                    "logistics"])  # note: next addition will be battle-sim automation
     mu01.run()
 
