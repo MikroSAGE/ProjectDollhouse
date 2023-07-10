@@ -34,7 +34,7 @@ def getWindowElementLocation(element_image, scaling_factor=1.0, confidence=0.8):
     new_height = int(img.height * scaling_factor)
 
     resized_image = img.resize((new_width, new_height))
-    resized_image.save("targetElement.jpg")
+    resized_image.save(r"targetElement.jpg")
 
     template = cv2.imread("targetElement.jpg", cv2.IMREAD_UNCHANGED)
     sample = cv2.imread("windowCapture.bmp", cv2.IMREAD_UNCHANGED)
@@ -80,24 +80,41 @@ class Client:
                           "GFLlogisticsOkay": {"timeout": 10, "repeats": 1, "confidence": 0.8}
                           },
 
-            "intelligence": {"GFLcombat":                {"timeout": 10, "repeats": 1, "confidence": 0.8},
-                             "GFLbase":                  {"timeout": 10, "repeats": 1, "confidence": 0.8},
+            "intelligence": {"GFLbase":                  {"timeout": 10, "repeats": 1, "confidence": 0.8},
                              "GFLintelligence":          {"timeout": 10, "repeats": 1, "confidence": 0.8},
                              "GFLdataHub":               {"timeout": 20, "repeats": 1, "confidence": 0.8},
                              "dummy":                    {"timeout": 1, "repeats": 1, "confidence": 0.8},
                              "GFLanalysisTerminal":      {"timeout": 5, "repeats": 1, "confidence": 0.8},
                              "GFLconfirmDataCollection": {"timeout": 5, "repeats": 3, "confidence": 0.98},
                              "GFLdataStart":             {"timeout": 5, "repeats": 1, "confidence": 0.8},
+                             "GFLpureSample":            {"timeout": 2, "repeats": 1, "confidence": 0.95},
                              "GFLdataOkay":              {"timeout": 5, "repeats": 1, "confidence": 0.8},
-                             "GFLanalysisTerminalExit":  {"timeout": 10, "repeats": 1, "confidence": 0.8},
-                             "GFLhome":                  {"timeout": 10, "repeats": 1, "confidence": 0.8}
-                             }
+                             "GFLdataClose":             {"timeout": 2, "repeats": 1, "confidence": 0.8},
+                             "GFLdataCancel":            {"timeout": 2, "repeats": 1, "confidence": 0.8},
+                             "GFLanalysisTerminalExit":  {"timeout": 10, "repeats": 1, "confidence": 0.8}
+                             },
+
+            "exploration": {"GFLbase":            {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                            "GFLforwardBasecamp": {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                            "GFLlootCrate":       {"timeout": 20, "repeats": 1, "confidence": 0.8},
+                            "dummy":              {"timeout": 1, "repeats": 1, "confidence": 0.8}
+                            },
+
+            "battery": {"GFLbase":           {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                        "GFLdorm":           {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                        "GFLsuperCapacitor": {"timeout": 20, "repeats": 2, "confidence": 0.8}
+                        },
+
+            "combat": {"GFLcombat": {"timeout": 10, "repeats": 1, "confidence": 0.8}},
+
+            "home": {"GFLhome": {"timeout": 10, "repeats": 1, "confidence": 0.8}}
         }
         self.actionQueue = actionQueue
         self.window = None  # to store the window handle
         self.device = None  # to store the ADB device handle
         self.port = None
         self.client = AdbClient(host="127.0.0.1", port=5037)
+        self.adb_path = r"C:\platform-tools\adb.exe"
         self.clock = time.time()
         self.emulatorThread = Thread(target=self.launchEmulator)  # to store the emulator thread
         self.debugThread = Thread(target=self.getRelativeMousePosition)  # to store the debug thread
@@ -123,9 +140,8 @@ class Client:
         self.port = matches[0][36:-2]
 
     def getDevice(self):
-        adb_path = r"C:\platform-tools\adb.exe"
-        subprocess.run([adb_path, "devices"])
-        subprocess.run([adb_path, "connect", f"localhost:{self.port}"])
+        subprocess.run([self.adb_path, "devices"])
+        subprocess.run([self.adb_path, "connect", f"localhost:{self.port}"])
 
         self.device = self.client.device(f"localhost:{self.port}")
 
@@ -135,8 +151,15 @@ class Client:
             time.sleep(1)
 
     def click(self, x, y):
-        cmdParam = str(x)+" "+str(y)+" "+str(x)+" "+str(y)
-        self.device.shell("input touchscreen swipe " + cmdParam)
+        try:
+            cmdParam = str(x)+" "+str(y)+" "+str(x)+" "+str(y)
+            self.device.shell("input touchscreen swipe " + cmdParam)
+        except RuntimeError:
+            print("\nERROR: Device offline - restarting daemon...")
+            subprocess.run([self.adb_path, "kill-server"])
+            subprocess.run([self.adb_path, "start-server"])
+            self.getDevice()
+            self.click(x, y)
 
     def clickWindowElement(self, element, timeout=-1, repeats=1, confidence=0.8):
         scaling_factor = np.mean([self.width / self.nativeWindowDimensions[0], self.height / self.nativeWindowDimensions[1]])
@@ -166,12 +189,13 @@ class Client:
 
         return True
 
-    def executeAgenda(self, agenda, interval=np.random.uniform(1, 3)):
+    def executeAgenda(self, agenda):
         for action in agenda:
             actionDict = self.actions[action]
             for element, elementAttr in actionDict.items():
-                time.sleep(interval)
+                time.sleep(0.5)
                 if element == "dummy":
+                    time.sleep(2)
                     self.click(self.width//2, self.height//4)
                     print("dummy click...")
                     continue
