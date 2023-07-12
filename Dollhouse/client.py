@@ -193,11 +193,20 @@ class Client:
         for action in agenda:
             actionDict = self.actions[action]
             for element, elementAttr in actionDict.items():
-                time.sleep(2)
-                if element == "dummy":
+                time.sleep(0.5)
+                """========================[Custom Clauses]==========================="""
+
+                if element == "dummy":  # rid pop-up panel
+                    time.sleep(2)
                     self.click(self.width//2, self.height//4)
                     print("dummy click...")
                     continue
+
+                elif element == "GFLpureSample":  # maintain varying sample selection
+                    if np.random.randint(1, 5) <= 3:
+                        continue
+
+                """===================================================================="""
                 self.clickWindowElement(element,
                                         timeout=elementAttr["timeout"],
                                         repeats=elementAttr["repeats"],
