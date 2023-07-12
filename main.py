@@ -11,11 +11,11 @@ def bootstrap():
 
     mu01 = Client(["sign-in",
                    "logistics",
+                   "combat",
                    "intelligence",
-                   "logistics",
                    "exploration",
-                   "logistics",
                    "battery",
+                   "home",
                    "logistics"])  # note: next addition will be battle-sim automation
     mu01.run()
 
@@ -29,8 +29,8 @@ def main():
 
     bootstrap()
 
-    # Schedule the program to run every 30 minutes
-    schedule.every(30).minutes.do(bootstrap)
+    # Schedule the program to run every hour
+    schedule.every().hour.do(bootstrap)
 
     while True:
 
