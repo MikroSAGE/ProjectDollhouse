@@ -3,10 +3,12 @@ opencv-python==4.5.3.56
 Pure-Python-ADB==0.2.1
 PyAutoGUI==0.9.52
 Pillow==8.3.1
+pywin32
 pygetwindow==0.0.9
 pywinauto==0.6.8
-ppadb==1.1.0
 ahk==0.10.5
+"ahk[binary]"
 pyuac==0.0.14
 keyboard==0.13.5
 schedule==1.1.0
+
