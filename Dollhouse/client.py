@@ -202,7 +202,7 @@ class Client:
                     print("dummy click...")
                     continue
 
-                elif element == "GFLpureSample":  # maintain varying sample selection
+                if element == "GFLpureSample":  # maintain varying sample selection
                     if np.random.randint(1, 5) <= 3:
                         continue
 
