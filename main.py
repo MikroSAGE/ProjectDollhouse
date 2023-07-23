@@ -9,14 +9,14 @@ import schedule
 def bootstrap():
     print(f"Operations commenced on {datetime.datetime.now().strftime('%c')}\n")
 
-    # mu01 = Client(["sign-in",
-    #                "logistics",
-    #                "combat",
-    #                "intelligence",
-    #                "exploration",
-    #                "battery",
-    #                "home",
-    #                "logistics"])  # note: next addition will be battle-sim automation
+    mu01 = Client(["sign-in",
+                   "logistics",
+                   "combat",
+                   "intelligence",
+                   "exploration",
+                   "battery",
+                   "home",
+                   "logistics"])  # note: next addition will be battle-sim automation
 
     mu01 = Client(["combat",
                    "simulation"])
