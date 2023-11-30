@@ -4,27 +4,11 @@ import numpy as np
 import cv2
 from ppadb.client import Client as AdbClient
 from PIL import Image
-import win32con, win32gui, win32ui
+import mss.tools
 from threading import Thread
 from ahk import AHK
 
 ahk = AHK()
-
-
-def captureWindow(window_title, width, height):
-    hwnd = win32gui.FindWindow(None, window_title)
-    wDC = win32gui.GetWindowDC(hwnd)
-    dcObj = win32ui.CreateDCFromHandle(wDC)
-    cDC = dcObj.CreateCompatibleDC()
-    dataBitMap = win32ui.CreateBitmap()
-    dataBitMap.CreateCompatibleBitmap(dcObj, width, height)
-    cDC.SelectObject(dataBitMap)
-    cDC.BitBlt((0, 0), (width, height), dcObj, (0, 0), win32con.SRCCOPY)
-    dataBitMap.SaveBitmapFile(cDC, 'windowCapture.bmp')
-    dcObj.DeleteDC()
-    cDC.DeleteDC()
-    win32gui.ReleaseDC(hwnd, wDC)
-    win32gui.DeleteObject(dataBitMap.GetHandle())
 
 
 def getWindowElementLocation(element_image, scaling_factor=1.0, confidence=0.8):
@@ -37,13 +21,11 @@ def getWindowElementLocation(element_image, scaling_factor=1.0, confidence=0.8):
     resized_image.save(r"targetElement.jpg")
 
     template = cv2.imread("targetElement.jpg", cv2.IMREAD_UNCHANGED)
-    sample = cv2.imread("windowCapture.bmp", cv2.IMREAD_UNCHANGED)
+    sample = cv2.imread("screenshot.png", cv2.IMREAD_UNCHANGED)
 
     try:
         result = cv2.matchTemplate(sample, template, cv2.TM_CCOEFF_NORMED)
         minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(result)
-
-        # print(f"template: {element_image}, confidence: {maxVal:.2%}")
 
         if maxVal < confidence:
             return None
@@ -62,6 +44,8 @@ class Client:
     def __init__(self, actionQueue):
         self.title = "BlueStacks App Player"  # to store the title of the window
         self.process = "HD-Player.exe"
+        self.x = 0
+        self.y = 0
         self.width = 0
         self.height = 0
         self.nativeWindowDimensions = (2302, 1326)
@@ -70,8 +54,8 @@ class Client:
             "sign-in": {"GFLapp":         {"timeout": -1, "repeats": 1, "confidence": 0.8},
                         "GFLstart":       {"timeout": 20, "repeats": 1, "confidence": 0.8},
                         "GFLupdate":      {"timeout": 20, "repeats": 1, "confidence": 0.8},
-                        "GFLgamestart":   {"timeout": -1, "repeats": 1, "confidence": 0.8},
-                        "GFLfacebook":    {"timeout": 15, "repeats": 1, "confidence": 0.8},
+                        "GFLgamestart":   {"timeout": -1, "repeats": 1, "confidence": 0.65},
+                        "GFLfacebook":    {"timeout": 25, "repeats": 1, "confidence": 0.8},
                         "GFLclosebanner": {"timeout": 35, "repeats": 5, "confidence": 0.8},
                         "GFLexitevent":   {"timeout": 3, "repeats": 1, "confidence": 0.8}
                         },
@@ -80,6 +64,12 @@ class Client:
                           "GFLlogisticsOkay": {"timeout": 10, "repeats": 1, "confidence": 0.8}
                           },
 
+            "simulation": {"GFLsimulation":     {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                           "GFLneuralCorridor": {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                           "GFLadvanced":       {"timeout": 10, "repeats": 1, "confidence": 0.8},
+                           "GFLc": {}
+                           },
+
             "intelligence": {"GFLbase":                  {"timeout": 10, "repeats": 1, "confidence": 0.8},
                              "GFLintelligence":          {"timeout": 10, "repeats": 1, "confidence": 0.8},
                              "GFLdataHub":               {"timeout": 20, "repeats": 1, "confidence": 0.8},
@@ -87,6 +77,7 @@ class Client:
                              "GFLanalysisTerminal":      {"timeout": 5, "repeats": 1, "confidence": 0.8},
                              "GFLconfirmDataCollection": {"timeout": 5, "repeats": 3, "confidence": 0.98},
                              "GFLdataStart":             {"timeout": 5, "repeats": 1, "confidence": 0.8},
+                             "GFLoriginalSample":        {"timeout": 2, "repeats": 1, "confidence": 0.95},
                              "GFLpureSample":            {"timeout": 2, "repeats": 1, "confidence": 0.95},
                              "GFLdataOkay":              {"timeout": 5, "repeats": 1, "confidence": 0.8},
                              "GFLdataClose":             {"timeout": 2, "repeats": 1, "confidence": 0.8},
@@ -127,9 +118,8 @@ class Client:
         try:
             # wait up to 5 seconds for WINDOW
             self.window = ahk.win_wait(title=self.title, timeout=5)
-            self.window.to_bottom()
-            self.width = self.window.get_position()[2]
-            self.height = self.window.get_position()[3]
+            self.window.to_top()
+            self.x, self.y, self.width, self.height = self.window.get_position()
             print(f"Got AHK window handle at {self.window}")
         except TimeoutError:
             print(f'{self.title} was not found!')
@@ -152,14 +142,18 @@ class Client:
 
     def click(self, x, y):
         try:
-            cmdParam = str(x)+" "+str(y)+" "+str(x)+" "+str(y)
-            self.device.shell("input touchscreen swipe " + cmdParam)
+            cmd_param = str(x)+" "+str(y)
+            self.device.shell("input touchscreen tap " + cmd_param)
         except RuntimeError:
             print("\nERROR: Device offline - restarting daemon...")
             subprocess.run([self.adb_path, "kill-server"])
             subprocess.run([self.adb_path, "start-server"])
             self.getDevice()
             self.click(x, y)
+
+    def swipe(self, x1, y1, x2, y2):
+        cmdParam = str(x1)+" "+str(y1)+" "+str(x2)+" "+str(y2)
+        self.device.shell("input touchscreen swipe " + cmdParam)
 
     def clickWindowElement(self, element, timeout=-1, repeats=1, confidence=0.8):
         scaling_factor = np.mean([self.width / self.nativeWindowDimensions[0], self.height / self.nativeWindowDimensions[1]])
@@ -179,7 +173,14 @@ class Client:
                 print(f"Element interation at [{element}] timed out.")
                 return False
 
-            captureWindow(self.title, self.width, self.height)
+            time.sleep(0.5)
+
+            with mss.mss() as sct:
+                bbox = (self.x, self.y, self.x + self.width, self.y + self.height)
+
+                im = sct.grab(bbox)
+
+                mss.tools.to_png(im.rgb, im.size, output="screenshot.png")
 
             img = getWindowElementLocation(f"images//{element}.png", scaling_factor=scaling_factor, confidence=confidence)  # get a screenshot of window and return coords of element
 
@@ -202,8 +203,8 @@ class Client:
                     print("dummy click...")
                     continue
 
-                if element == "GFLpureSample":  # maintain varying sample selection
-                    if np.random.randint(1, 5) <= 3:
+                elif element == "GFLpureSample":  # maintain varying sample selection
+                    if np.random.randint(1, 5) <= 4:
                         continue
 
                 """===================================================================="""

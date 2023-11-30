@@ -17,6 +17,9 @@ def bootstrap():
                    "battery",
                    "home",
                    "logistics"])  # note: next addition will be battle-sim automation
+
+    # mu01 = Client(["combat",
+    #                "simulation"])
     mu01.run()
 
     print("\n" + "\u2501" * 50 + "\n")
